@@ -22,8 +22,10 @@ class FeedView extends StatefulWidget {
 }
 
 class _FeedViewState extends State<FeedView> {
+  final scrollPosNotifier = ValueNotifier<double>(0.0);
+
   ImageProvider _getRandomImage(int index) {
-    final imageId = (index + 50) % 1000; // The first 50 images are kinda same-y
+    final imageId = (index + 50) % 1000; // Skip the first 50 images
     return NetworkImage("https://picsum.photos/id/$imageId/540/960");
   }
 
@@ -43,16 +45,40 @@ class _FeedViewState extends State<FeedView> {
       if (constraints.maxHeight == 0) {
         return Container();
       }
-      return ListView.builder(
-        padding: windowPadding,
-        itemExtent: (constraints.maxHeight - windowPadding.top) * 0.85,
-        itemBuilder: (ctx, index) => FeedItem(
-              image: _getRandomImage(index),
-              title: _genTitle(),
-              description: _genDescription(),
-            ),
-      );
+      final itemExtent = (constraints.maxHeight - windowPadding.top) * 0.85;
+      return NotificationListener<ScrollUpdateNotification>(
+          child: ListView.builder(
+            padding: windowPadding,
+            itemExtent: itemExtent,
+            itemBuilder: (ctx, index) => FeedItem(
+                  image: _getRandomImage(index),
+                  title: _genTitle(),
+                  description: _genDescription(),
+                  scrollPosNotifier: scrollPosNotifier,
+                  visibilityResolver: ItemVisibilityResolver(
+                      itemExtent: itemExtent, index: index),
+                ),
+          ),
+          onNotification: (notif) {
+            scrollPosNotifier.value = notif.metrics.pixels;
+            return true;
+          });
     });
+  }
+}
+
+// Parallax calculation adapted from
+// https://iirokrankka.com/2017/09/23/bringing-the-pagetransformer-from-android-to-flutter/
+class ItemVisibilityResolver {
+  final double itemExtent;
+  final int index;
+
+  ItemVisibilityResolver({@required this.itemExtent, @required this.index});
+
+  // Returns a value from -1 to 1, depending on the scroll position
+  double resolveVisibility(double scrollPosition) {
+    final basePos = itemExtent * index;
+    return ((basePos - scrollPosition) / itemExtent).clamp(-1.0, 1.0);
   }
 }
 
@@ -60,9 +86,15 @@ class FeedItem extends StatelessWidget {
   final ImageProvider image;
   final String title;
   final String description;
+  final ValueNotifier<double> scrollPosNotifier;
+  final ItemVisibilityResolver visibilityResolver;
 
   FeedItem(
-      {@required this.image, @required this.title, @required this.description});
+      {@required this.image,
+      @required this.title,
+      @required this.description,
+      @required this.scrollPosNotifier,
+      @required this.visibilityResolver});
 
   @override
   Widget build(BuildContext context) {
@@ -74,12 +106,10 @@ class FeedItem extends StatelessWidget {
         child: ClipRRect(
             borderRadius: BorderRadius.circular(9.0),
             child: Stack(children: [
-              Image(
-                image: image,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+              ParallaxImage(
+                  image: image,
+                  scrollPosNotifier: scrollPosNotifier,
+                  visibilityResolver: visibilityResolver),
               Container(
                   width: double.infinity,
                   padding: EdgeInsets.all(24.0),
@@ -108,5 +138,45 @@ class FeedItem extends StatelessWidget {
                                 .apply(color: Colors.white))
                       ]))
             ])));
+  }
+}
+
+class ParallaxImage extends StatelessWidget {
+  final ImageProvider image;
+  final ValueNotifier<double> scrollPosNotifier;
+  final ItemVisibilityResolver visibilityResolver;
+
+  static const PARALLAX_EXTENT = 75.0;
+
+  ParallaxImage(
+      {@required this.image,
+      @required this.scrollPosNotifier,
+      @required this.visibilityResolver});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (ctx, constraints) {
+      final width = constraints.maxWidth + 2; // Add 1px strip on both sides
+      final height = constraints.maxHeight + 2 * PARALLAX_EXTENT;
+      return AnimatedBuilder(
+          animation: scrollPosNotifier,
+          child: RepaintBoundary(
+              child: OverflowBox(
+                  minWidth: width,
+                  minHeight: height,
+                  maxHeight: height,
+                  maxWidth: width,
+                  child: Image(
+                    image: image,
+                    fit: BoxFit.cover,
+                  ))),
+          builder: (ctx, child) => Transform.translate(
+              offset: Offset(
+                  0.0,
+                  -visibilityResolver
+                          .resolveVisibility(scrollPosNotifier.value) *
+                      PARALLAX_EXTENT),
+              child: child));
+    });
   }
 }
