@@ -158,25 +158,26 @@ class ParallaxImage extends StatelessWidget {
     return LayoutBuilder(builder: (ctx, constraints) {
       final width = constraints.maxWidth + 2; // Add 1px strip on both sides
       final height = constraints.maxHeight + 2 * PARALLAX_EXTENT;
-      return AnimatedBuilder(
-          animation: scrollPosNotifier,
-          child: RepaintBoundary(
-              child: OverflowBox(
-                  minWidth: width,
-                  minHeight: height,
-                  maxHeight: height,
-                  maxWidth: width,
-                  child: Image(
-                    image: image,
-                    fit: BoxFit.cover,
-                  ))),
-          builder: (ctx, child) => Transform.translate(
-              offset: Offset(
-                  0.0,
-                  -visibilityResolver
-                          .resolveVisibility(scrollPosNotifier.value) *
-                      PARALLAX_EXTENT),
-              child: child));
+      return RepaintBoundary(
+          child: AnimatedBuilder(
+              animation: scrollPosNotifier,
+              child: RepaintBoundary(
+                  child: OverflowBox(
+                      minWidth: width,
+                      minHeight: height,
+                      maxHeight: height,
+                      maxWidth: width,
+                      child: Image(
+                        image: image,
+                        fit: BoxFit.cover,
+                      ))),
+              builder: (ctx, child) => Transform.translate(
+                  offset: Offset(
+                      0.0,
+                      -visibilityResolver
+                              .resolveVisibility(scrollPosNotifier.value) *
+                          PARALLAX_EXTENT),
+                  child: child)));
     });
   }
 }
