@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:random_words/random_words.dart';
+import 'dart:math';
 
 void main() => runApp(MyApp());
 
@@ -29,12 +29,13 @@ class _FeedViewState extends State<FeedView> {
         "https://loremflickr.com/540/960/nature/all?lock=$index");
   }
 
-  String _genTitle() {
-    return generateWordPairs().first.asPascalCase;
-  }
-
-  String _genDescription() {
-    return generateAdjective().take(10).join(" ");
+  String _genRandomText({int seed, int numWords}) {
+    final random = Random(seed);
+    return Iterable.generate(
+            numWords,
+            (_) => String.fromCharCodes(Iterable.generate(3 + random.nextInt(5),
+                (_) => (random.nextBool() ? 65 : 97) + random.nextInt(26))))
+        .join(" ");
   }
 
   @override
@@ -52,8 +53,8 @@ class _FeedViewState extends State<FeedView> {
             itemExtent: itemExtent,
             itemBuilder: (ctx, index) => FeedItem(
                   image: _getRandomImage(index),
-                  title: _genTitle(),
-                  description: _genDescription(),
+                  title: _genRandomText(seed: index, numWords: 2),
+                  description: _genRandomText(seed: index, numWords: 10),
                   scrollPosNotifier: scrollPosNotifier,
                   visibilityResolver: ItemVisibilityResolver(
                       itemExtent: itemExtent, index: index),
