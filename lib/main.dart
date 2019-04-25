@@ -25,8 +25,8 @@ class _FeedViewState extends State<FeedView> {
   final scrollPosNotifier = ValueNotifier<double>(0.0);
 
   ImageProvider _getRandomImage(int index) {
-    final imageId = (index + 50) % 1000; // Skip the first 50 images
-    return NetworkImage("https://picsum.photos/id/$imageId/540/960");
+    return NetworkImage(
+        "https://loremflickr.com/540/960/nature/all?lock=$index");
   }
 
   String _genTitle() {
